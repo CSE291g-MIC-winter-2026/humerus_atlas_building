@@ -158,14 +158,6 @@ class BoneINRDecoder(nn.Module):
             output[i:i + step_size] = self.forward(
                 c, latent_vec, cv, idcs_df=idcs_df
             )
-            
-            # Spatial regularization: Force SDF to be positive (outside) 
-            # as we go far beyond the canonical [-1, 1] box.
-            # This suppresses periodic artifacts and cleanly closes extruded shapes.
-            dist_from_box = torch.amax(torch.abs(c) - 1.5, dim=-1)
-            mask = dist_from_box > 0
-            # Add a strong gradient outwards (slope 5.0)
-            output[i:i + step_size][mask] += (dist_from_box[mask] * 5.0).unsqueeze(-1)
         
         # Reshape to volume
         if img_shape is not None:

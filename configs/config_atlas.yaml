@@ -68,7 +68,6 @@ inr_decoder:
 atlas_gen:
   spacing: [1.0, 1.0, 1.0]        # Atlas voxel spacing in mm
   resolution: 128                  # Atlas grid resolution
-  grid_range: 2.5            # Grid extent [-range, range] (expanded to avoid trimming)
   gaussian_span: 1.0               # Not used (no temporal axis), kept for compatibility
   cond_scale: 0.05                 # Condition vector scaling
   conditions: null                 # No explicit conditions for basic humerus atlas

@@ -51,22 +51,6 @@ def load_trained_model(checkpoint_path, device='cpu'):
     checkpoint = torch.load(checkpoint_path, weights_only=False,
                             map_location=device)
     args = checkpoint['args']
-    
-    # Overwrite atlas_gen config with local file to pick up fixes (e.g. grid_range)
-    try:
-        import yaml
-        local_config_path = os.path.join('configs', 'config_atlas.yaml')
-        if os.path.exists(local_config_path):
-            with open(local_config_path, 'r') as f:
-                local_conf = yaml.safe_load(f)
-                if 'atlas_gen' in local_conf:
-                    # Merge/Update
-                    for k, v in local_conf['atlas_gen'].items():
-                        args['atlas_gen'][k] = v
-                    print(f"Updated atlas_gen config from {local_config_path}")
-    except Exception as e:
-        print(f"Warning: Failed to update config from local file: {e}")
-
     args['device'] = device
     
     # Rebuild decoder

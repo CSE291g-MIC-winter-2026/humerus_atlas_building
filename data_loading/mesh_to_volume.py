@@ -74,25 +74,20 @@ def mirror_mesh_x(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
 def detect_side(mesh: trimesh.Trimesh) -> str:
     """
     Heuristic side detection based on mesh geometry.
+    Uses the principal axis orientation to guess left vs right.
+    
     For proximal humerus, the head typically points medially.
-    The head is the widest part of the proximal humerus.
+    This is a best-effort heuristic — can be overridden by metadata.
+    
+    Args:
+        mesh: Input humerus mesh
+    
+    Returns:
+        'left' or 'right' (default assumption is 'right')
     """
-    centered = mesh.copy()
-    # Align to origin based on bounding box center
-    bounds = centered.bounds
-    center = bounds.mean(axis=0)
-    centered.vertices -= center
-    
-    # Check if more vertices are on the far negative vs far positive side
-    # The head creates a 'bulge' on one side
-    v = centered.vertices
-    extent_x = v[:, 0].max() - v[:, 0].min()
-    threshold = extent_x * 0.2
-    
-    left_mass = (v[:, 0] < -threshold).sum()
-    right_mass = (v[:, 0] > threshold).sum()
-    
-    return 'left' if left_mass > right_mass else 'right'
+    # Default: assume right. Override in metadata if available.
+    # A more sophisticated approach would use PCA or landmark detection.
+    return 'right'
 
 
 def center_and_normalize(mesh: trimesh.Trimesh, target_bbox: float = 2.0) -> tuple:

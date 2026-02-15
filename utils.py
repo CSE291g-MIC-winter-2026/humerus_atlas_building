@@ -114,15 +114,14 @@ def generate_world_grid(args, device='cpu'):
         args: Configuration dict with 'atlas_gen' settings
     
     Returns:
-        coords: (N, 3) flattened grid coordinates in [-range, range]
+        coords: (N, 3) flattened grid coordinates in [-1, 1]
         grid_shape: [X, Y, Z] grid dimensions
         affine: 4x4 affine matrix (identity-based for SDF space)
     """
     resolution = args['atlas_gen'].get('resolution', 128)
     spacing = args['atlas_gen'].get('spacing', [1.0, 1.0, 1.0])
-    grid_range = args['atlas_gen'].get('grid_range', 1.0)
     
-    grid = torch.linspace(-grid_range, grid_range, resolution, device=device)
+    grid = torch.linspace(-1, 1, resolution, device=device)
     xx, yy, zz = torch.meshgrid(grid, grid, grid, indexing='ij')
     coords = torch.stack([xx.flatten(), yy.flatten(), zz.flatten()], dim=-1)
     

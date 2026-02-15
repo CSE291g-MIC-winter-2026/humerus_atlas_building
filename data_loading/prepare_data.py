@@ -93,24 +93,10 @@ def process_subjects(subjects: list, output_dir: str, resolution: int = 128):
         print(f"\nProcessing {subject_id} ({len(stl_files)} fragments)...")
         
         try:
-            # Load mesh to detect side
-            if len(stl_files) > 1:
-                from data_loading.mesh_to_volume import combine_fragments
-                mesh = combine_fragments(stl_files)
-            else:
-                from data_loading.mesh_to_volume import load_stl
-                mesh = load_stl(stl_files[0])
-            
-            from data_loading.mesh_to_volume import detect_side
-            side = detect_side(mesh)
-            should_mirror = (side == 'left')
-            
-            print(f"  Detected side: {side} (Mirroring: {should_mirror})")
-
             result = stl_to_sdf_with_metadata(
                 stl_files,
                 resolution=resolution,
-                mirror_left=should_mirror
+                mirror_left=False  # Default: no mirroring, can be overridden per-subject
             )
             
             sdf = result['sdf']
