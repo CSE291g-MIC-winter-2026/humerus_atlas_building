@@ -1,0 +1,48 @@
+# ============================================================================
+# CINeMA-Bone: Dataset Configuration for Humerus Bone Fractures
+# ============================================================================
+
+humerus:
+  dataset_name: humerus_fracture
+  
+  # --- Data Paths ---
+  data_dir: ./data                                    # Root data directory
+  processed_dir: ./data/processed                     # Pre-voxelized SDF directory
+  tsv_file: ./data/processed/subjects.tsv             # Metadata TSV
+  subject_ids: ./configs/subject_ids.yaml             # Train/val split
+  
+  # --- Modalities ---
+  # Unlike brain MRI (T1w, T2w, Seg), bone data has a single modality: SDF
+  modalities: ['sdf']
+  
+  # --- Voxelization ---
+  voxel_resolution: 128                               # Voxel grid resolution per axis
+  
+  # --- Coordinate Sampling ---
+  surface_sample_ratio: 0.5                           # Fraction of samples near bone surface
+  surface_threshold: 0.05                             # SDF threshold for "near surface"
+  
+  # --- Conditions ---
+  # Conditions for explicit atlas conditioning.
+  # Set to true to enable conditioning on that property.
+  conditions:
+    fracture_type: false                              # Not used initially
+    side: false                                       # L/R side (all mirrored to right)
+  
+  # --- Constraints ---
+  # Filter subjects based on metadata properties
+  constraints:
+    n_fragments:
+      type: numeric
+      min: 1
+      max: 20
+    fill_ratio:
+      type: numeric
+      min: 0.001                                      # Exclude empty volumes
+      max: 1.0
+  
+  # --- Bounding Box ---
+  world_bbox: [100, 100, 100]                         # Common bounding box in mm
+  
+  # --- Normalization ---
+  normalize_values: 'none'                            # SDF is already in [-1, 1]

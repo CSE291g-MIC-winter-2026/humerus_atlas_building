@@ -1,0 +1,23 @@
+# Data and Outputs
+data/
+output/
+*.npy
+*.stl
+*.nii.gz
+*.pth
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log

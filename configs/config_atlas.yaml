@@ -1,0 +1,86 @@
+# ============================================================================
+# CINeMA-Bone: Configuration for Humerus Bone Atlas Training
+# ============================================================================
+# Adapted from CINeMA (Conditional Implicit Neural Multi-Modal Atlas)
+# for 3D proximal humerus fracture atlas building.
+
+# --------- Logging Parameters ---------
+logging: False                      # If True, log to wandb
+output_dir: ./output                # Directory to save model, reconstructions, atlases
+wandb_entity: ''                    # wandb entity
+project_name: CINeMA-Bone          # wandb project name
+config_data: humerus               # Dataset config name (in config_data.yaml)
+
+# --------- Device Parameters ---------
+device: cuda
+amp: True                          # Automatic mixed precision
+seed: 42
+
+# --------- General Options ---------
+generate_atlas: True               # Generate atlas after training
+mask_reconstruction: False         # Not needed for bone SDF
+compute_metrics: True              # Compute reconstruction metrics
+save_imgs:
+  train: True                      
+  val: True
+save_model: True                   # Save model checkpoints
+load_model:
+  path: ""
+  epoch: 0
+
+# --------- Data Augmentation ---------
+data_augmentation:
+  activate: False                  # Augmentation handled differently for meshes
+
+# --------- Coordinate Sampling ---------
+n_coords_per_subject: 50000        # Number of (coord, sdf) pairs per subject per epoch
+
+# --------- Optimizer Parameters ---------
+optimizer:
+  re_init_latents: False
+  lr_inr: 1.0e-4                   # INR network learning rate
+  inr_weight_decay: 0.0
+  lr_latent: 5.0e-4                # Latent code learning rate
+  latent_weight_decay: 0.0
+  lr_tf: 7.5e-3                    # Transformation learning rate
+  tf_weight_decay: 0.0
+  loss_metric: 'l1'                # L1 loss for SDF regression
+  eikonal_weight: 0.1              # Eikonal regularization (|∇SDF| ≈ 1)
+  latent_reg_weight: 1.0e-4        # Latent code regularization
+  scheduler:
+    type: 'cosine'
+    eta_min: 2.5e-5
+
+# --------- INR Decoder Parameters ---------
+inr_decoder:
+  tf_dim: 6                        # Rigid alignment: 6 DoF (rotation + translation)
+  cnn_kernel_size: 0               # No spatial CNN modulation (simpler for bone)
+  latent_dim: [128, 3, 3, 3]       # Per-subject latent: [channels, X, Y, Z]
+  in_dim: 3                        # 3D input coordinates
+  out_dim: [1]                     # Single SDF output channel
+  hidden_size: 512                 # SIREN hidden layer width
+  num_hidden_layers: 4             # Number of hidden SIREN layers
+  modulated_layers: [1, 3]         # Layers modulated by latent code
+  omega: [30, 30]                  # SIREN first/hidden omega frequency
+  cond_dims: 0                     # Set automatically from dataset conditions
+
+# --------- Atlas Generation Parameters ---------
+atlas_gen:
+  spacing: [1.0, 1.0, 1.0]        # Atlas voxel spacing in mm
+  resolution: 128                  # Atlas grid resolution
+  grid_range: 2.5            # Grid extent [-range, range] (expanded to avoid trimming)
+  gaussian_span: 1.0               # Not used (no temporal axis), kept for compatibility
+  cond_scale: 0.05                 # Condition vector scaling
+  conditions: null                 # No explicit conditions for basic humerus atlas
+
+# --------- Training Parameters ---------
+n_subjects:
+  train: 250                       # Max subjects for training (auto-capped to available)
+  val: 100                         # Max subjects for validation
+epochs:
+  train: 50                        # Training epochs
+  val: 5                           # Validation latent optimization epochs
+validate_every: 10                 # Validate every N training epochs
+batch_size: 1                      # Subjects per batch 
+n_samples: 25000                   # Coordinates per inner batch (sampled across batch subjects)
+num_workers: 4                     # DataLoader workers
