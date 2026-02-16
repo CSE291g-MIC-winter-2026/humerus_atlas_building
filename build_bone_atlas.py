@@ -69,19 +69,27 @@ class BoneAtlasBuilder:
             if self.args['optimizer'].get('re_init_latents', False):
                 self.re_init_latents()
             
-            loss = self._train_epoch(epoch, split='train')
-            loss_hist_epochs.append(loss)
+            epoch_losses, n_updates = self._train_epoch(epoch, split='train')
+            loss_hist_epochs.append(epoch_losses['total'])
             
             elapsed = time.time() - start_time
-            print(f"Epoch {epoch}: Loss={np.mean(loss_hist_epochs[-5:]):.6f}, "
-                  f"Time={elapsed:.1f}s")
+            print(
+                f"Epoch {epoch}: "
+                f"total={epoch_losses['total']:.6f} | "
+                f"sdf={epoch_losses['sdf']:.6f} | "
+                f"latent_reg={epoch_losses['latent_reg']:.6f} | "
+                f"tf_reg={epoch_losses['tf_reg']:.6f} | "
+                f"total(5-ep-avg)={np.mean(loss_hist_epochs[-5:]):.6f} | "
+                f"time={elapsed:.1f}s"
+            )
             
             # Validation and atlas generation
             if (epoch + 1) % self.args['validate_every'] == 0 or \
                (epoch + 1) == self.args['epochs']['train']:
                 self._validate(epoch)
             
-            self._update_scheduler(split='train')
+            if n_updates > 0:
+                self._update_scheduler(split='train')
         
         # Final atlas generation
         print("\n=== Training Complete ===")
@@ -93,13 +101,24 @@ class BoneAtlasBuilder:
     def _train_epoch(self, epoch, split='train'):
         """Train for one epoch."""
         self.inr_decoder[split].train()
-        loss_hist = []
+        loss_hist = {
+            'total': [],
+            'sdf': [],
+            'latent_reg': [],
+            'tf_reg': [],
+        }
         
+        n_updates = 0
         for batch in self.dataloaders[split]:
-            loss = self._train_batch(batch, epoch, split)
-            loss_hist.append(loss)
+            batch_losses, batch_updates = self._train_batch(batch, epoch, split)
+            n_updates += batch_updates
+            for key in loss_hist:
+                loss_hist[key].append(batch_losses[key])
         
-        return np.mean(loss_hist)
+        return {
+            key: (float(np.mean(vals)) if len(vals) > 0 else 0.0)
+            for key, vals in loss_hist.items()
+        }, n_updates
     
     def _train_batch(self, batch, epoch, split='train'):
         """Process one batch of coordinate samples."""
@@ -108,8 +127,14 @@ class BoneAtlasBuilder:
             batch, self.device
         )
         
-        loss_hist = []
+        loss_hist = {
+            'total': [],
+            'sdf': [],
+            'latent_reg': [],
+            'tf_reg': [],
+        }
         
+        n_updates = 0
         for smpls in range(0, idx_df_batch.shape[0], n_smpls):
             self.optimizers[split].zero_grad()
             
@@ -117,7 +142,7 @@ class BoneAtlasBuilder:
             values = values_batch[smpls:smpls + n_smpls]
             idx_df = idx_df_batch[smpls:smpls + n_smpls].squeeze()
             conditions = conditions_batch[smpls:smpls + n_smpls]
-            
+
             with torch.autocast(device_type=self.device,
                                 enabled=self.args['amp']):
                 # Forward pass through INR decoder
@@ -142,11 +167,19 @@ class BoneAtlasBuilder:
             else:
                 losses['total'].backward()
                 self.optimizers[split].step()
+            n_updates += 1
             
-            loss_hist.append(losses['total'].item())
+            for key in loss_hist:
+                val = losses[key]
+                if isinstance(val, torch.Tensor):
+                    val = val.detach().item()
+                loss_hist[key].append(float(val))
             log_loss(losses, epoch, split, self.args['logging'])
         
-        return np.mean(loss_hist) if loss_hist else 0.0
+        return {
+            key: (float(np.mean(vals)) if len(vals) > 0 else 0.0)
+            for key, vals in loss_hist.items()
+        }, n_updates
     
     # =======================================================================
     # Validation
@@ -170,8 +203,9 @@ class BoneAtlasBuilder:
         if len(self.datasets.get('val', [])) > 0:
             self._init_validation()
             for epoch_val in range(self.args['epochs']['val']):
-                self._train_epoch(epoch=epoch_val, split='val')
-                self._update_scheduler(split='val')
+                _, n_updates = self._train_epoch(epoch=epoch_val, split='val')
+                if n_updates > 0:
+                    self._update_scheduler(split='val')
             
             self._generate_subject_reconstructions(
                 idcs_df=list(range(min(3, len(self.datasets['val'])))),

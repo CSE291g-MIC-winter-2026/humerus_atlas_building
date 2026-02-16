@@ -319,7 +319,6 @@ class TestBoneLoss:
         args = {
             'optimizer': {
                 'loss_metric': 'l1',
-                'eikonal_weight': 0.0,
                 'latent_reg_weight': 0.0,
                 'tf_weight': 0.0,
             }
@@ -340,7 +339,6 @@ class TestBoneLoss:
         args = {
             'optimizer': {
                 'loss_metric': 'l1',
-                'eikonal_weight': 0.0,
                 'latent_reg_weight': 0.01,
                 'tf_weight': 0.01,
             }

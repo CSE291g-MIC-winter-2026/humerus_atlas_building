@@ -45,7 +45,6 @@ optimizer:
   lr_tf: 7.5e-3                    # Transformation learning rate
   tf_weight_decay: 0.0
   loss_metric: 'l1'                # L1 loss for SDF regression
-  eikonal_weight: 0.1              # Eikonal regularization (|∇SDF| ≈ 1)
   latent_reg_weight: 1.0e-4        # Latent code regularization
   scheduler:
     type: 'cosine'
@@ -68,6 +67,7 @@ inr_decoder:
 atlas_gen:
   spacing: [1.0, 1.0, 1.0]        # Atlas voxel spacing in mm
   resolution: 128                  # Atlas grid resolution
+  extent: 1.0                      # Coordinate extent for inference grid [-extent, extent]
   gaussian_span: 1.0               # Not used (no temporal axis), kept for compatibility
   cond_scale: 0.05                 # Condition vector scaling
   conditions: null                 # No explicit conditions for basic humerus atlas

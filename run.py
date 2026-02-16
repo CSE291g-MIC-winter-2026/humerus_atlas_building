@@ -121,6 +121,7 @@ def parse_cmd_args():
                         help='Validate and save checkpoint every N epochs')
     parser.add_argument('--batch_size', type=int, default=None)
     parser.add_argument('--n_samples', type=int, default=None)
+    parser.add_argument('--num_workers', type=int, default=None)
     
     # INR config
     parser.add_argument('--inr_decoder__hidden_size', type=int, default=None)
@@ -130,6 +131,7 @@ def parse_cmd_args():
     
     # Atlas generation
     parser.add_argument('--atlas_gen__resolution', type=int, default=None)
+    parser.add_argument('--atlas_gen__extent', type=float, default=None)
     
     args = parser.parse_args()
     cmd_args = {k: v for k, v in vars(args).items() if v is not None}

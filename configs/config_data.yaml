@@ -46,3 +46,85 @@ humerus:
   
   # --- Normalization ---
   normalize_values: 'none'                            # SDF is already in [-1, 1]
+
+humerus_fixed:
+  dataset_name: humerus_fracture
+  
+  # --- Data Paths ---
+  data_dir: ./data                                    # Root data directory
+  processed_dir: ./data/processed_fixed_v2            # Fixed pre-voxelized SDF directory
+  tsv_file: ./data/processed_fixed_v2/subjects.tsv    # Metadata TSV
+  subject_ids: ./configs/subject_ids.yaml             # Train/val split
+  
+  # --- Modalities ---
+  modalities: ['sdf']
+  
+  # --- Voxelization ---
+  voxel_resolution: 128
+  
+  # --- Coordinate Sampling ---
+  surface_sample_ratio: 0.5
+  surface_threshold: 0.05
+  
+  # --- Conditions ---
+  conditions:
+    fracture_type: false
+    side: false
+  
+  # --- Constraints ---
+  constraints:
+    n_fragments:
+      type: numeric
+      min: 1
+      max: 20
+    fill_ratio:
+      type: numeric
+      min: 0.001
+      max: 1.0
+  
+  # --- Bounding Box ---
+  world_bbox: [100, 100, 100]
+  
+  # --- Normalization ---
+  normalize_values: 'none'
+
+humerus_canonical_v2:
+  dataset_name: humerus_fracture
+  
+  # --- Data Paths ---
+  data_dir: ./data
+  processed_dir: ./data/processed_canonical_v2
+  tsv_file: ./data/processed_canonical_v2/subjects.tsv
+  subject_ids: ./configs/subject_ids.yaml
+  
+  # --- Modalities ---
+  modalities: ['sdf']
+  
+  # --- Voxelization ---
+  voxel_resolution: 128
+  
+  # --- Coordinate Sampling ---
+  surface_sample_ratio: 0.5
+  surface_threshold: 0.05
+  
+  # --- Conditions ---
+  conditions:
+    fracture_type: false
+    side: false
+  
+  # --- Constraints ---
+  constraints:
+    n_fragments:
+      type: numeric
+      min: 1
+      max: 20
+    fill_ratio:
+      type: numeric
+      min: 0.001
+      max: 1.0
+  
+  # --- Bounding Box ---
+  world_bbox: [100, 100, 100]
+  
+  # --- Normalization ---
+  normalize_values: 'none'

@@ -22,15 +22,13 @@ class BoneLoss(nn.Module):
     
     Components:
         1. SDF regression loss (L1 or L2)
-        2. Eikonal regularization: encourages |∇SDF| ≈ 1
-        3. Latent code regularization: prevents latent explosion
-        4. Transformation regularization: keeps transforms small
+        2. Latent code regularization: prevents latent explosion
+        3. Transformation regularization: keeps transforms small
     """
     
     def __init__(self, args):
         super().__init__()
         self.loss_metric = args['optimizer']['loss_metric']
-        self.eikonal_weight = args['optimizer'].get('eikonal_weight', 0.0)
         self.latent_reg_weight = args['optimizer'].get('latent_reg_weight', 0.0)
         self.tf_weight = args['optimizer'].get('tf_weight', 0.0)
         
@@ -41,8 +39,7 @@ class BoneLoss(nn.Module):
         else:
             raise ValueError(f"Unknown loss metric: {self.loss_metric}")
     
-    def forward(self, pred_sdf, target_sdf, tfs=None, latents=None,
-                coords=None, model=None):
+    def forward(self, pred_sdf, target_sdf, tfs=None, latents=None):
         """
         Compute total loss.
         
@@ -51,33 +48,21 @@ class BoneLoss(nn.Module):
             target_sdf: (N, 1) ground truth SDF values
             tfs: (B, 6) transformation parameters (for regularization)
             latents: (B, C, X, Y, Z) latent codes (for regularization)
-            coords: (N, 3) input coordinates (for Eikonal)
-            model: INR decoder (for Eikonal gradient computation)
-        
         Returns:
-            Dict with 'total', 'sdf', 'eikonal', 'latent_reg', 'tf_reg'
+            Dict with 'total', 'sdf', 'latent_reg', 'tf_reg'
         """
         losses = {}
         
         # SDF reconstruction loss
         losses['sdf'] = self.sdf_loss_fn(pred_sdf, target_sdf)
         losses['total'] = losses['sdf']
-        
-        # Eikonal regularization
-        if self.eikonal_weight > 0 and coords is not None and model is not None:
-            eik = self._eikonal_loss(coords, model)
-            losses['eikonal'] = eik
-            losses['total'] = losses['total'] + self.eikonal_weight * eik
-        else:
-            losses['eikonal'] = torch.tensor(0.0)
-        
         # Latent regularization
         if self.latent_reg_weight > 0 and latents is not None:
             lat_reg = torch.mean(latents ** 2)
             losses['latent_reg'] = lat_reg
             losses['total'] = losses['total'] + self.latent_reg_weight * lat_reg
         else:
-            losses['latent_reg'] = torch.tensor(0.0)
+            losses['latent_reg'] = pred_sdf.new_tensor(0.0)
         
         # Transformation regularization
         if self.tf_weight > 0 and tfs is not None:
@@ -85,23 +70,10 @@ class BoneLoss(nn.Module):
             losses['tf_reg'] = tf_reg
             losses['total'] = losses['total'] + self.tf_weight * tf_reg
         else:
-            losses['tf_reg'] = torch.tensor(0.0)
+            losses['tf_reg'] = pred_sdf.new_tensor(0.0)
         
         return losses
     
-    @staticmethod
-    def _eikonal_loss(coords, model):
-        """
-        Eikonal regularization: penalize deviations from |∇SDF| = 1.
-        
-        Note: Requires coords to have gradients enabled.
-        """
-        # This is a simplified version — full Eikonal requires
-        # autograd through the network. For efficiency, we approximate
-        # using finite differences.
-        return torch.tensor(0.0, device=coords.device)
-
-
 # ===========================================================================
 # Coordinate Grid Generation
 # ===========================================================================
@@ -120,8 +92,11 @@ def generate_world_grid(args, device='cpu'):
     """
     resolution = args['atlas_gen'].get('resolution', 128)
     spacing = args['atlas_gen'].get('spacing', [1.0, 1.0, 1.0])
-    
-    grid = torch.linspace(-1, 1, resolution, device=device)
+    extent = args['atlas_gen'].get('extent', 1.0)
+
+    # Query coordinates in [-extent, extent]^3.
+    # Use extent > 1.0 at inference to avoid boundary clipping in marching cubes.
+    grid = torch.linspace(-extent, extent, resolution, device=device)
     xx, yy, zz = torch.meshgrid(grid, grid, grid, indexing='ij')
     coords = torch.stack([xx.flatten(), yy.flatten(), zz.flatten()], dim=-1)
     
@@ -156,6 +131,19 @@ def extract_mesh_from_sdf(sdf_volume, level=0.0, spacing=(1.0, 1.0, 1.0)):
     """
     from skimage.measure import marching_cubes
     
+    # Warn when level-set intersects volume boundary (typical cause of "cut" STL).
+    boundary_slices = (
+        sdf_volume[0, :, :], sdf_volume[-1, :, :],
+        sdf_volume[:, 0, :], sdf_volume[:, -1, :],
+        sdf_volume[:, :, 0], sdf_volume[:, :, -1]
+    )
+    if any(np.min(s) <= level for s in boundary_slices):
+        print(
+            "Warning: zero-surface touches volume boundary. "
+            "Atlas may look cut. Increase atlas_gen.extent (e.g., 1.15-1.30) "
+            "or resolution."
+        )
+
     try:
         vertices, faces, normals, _ = marching_cubes(
             sdf_volume, level=level, spacing=spacing
@@ -229,3 +217,5 @@ def denormalize_conditions(args, condition_key, normed_value):
         value = ((normed_value / cond_scale + 1) / 2) * (c_max - c_min) + c_min
         return value
     return normed_value
+
+

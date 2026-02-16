@@ -14,7 +14,12 @@ import numpy as np
 import yaml
 from tqdm import tqdm
 
-from data_loading.mesh_to_volume import stl_to_sdf_with_metadata
+from data_loading.mesh_to_volume import (
+    stl_to_sdf_with_metadata,
+    combine_fragments,
+    sample_points_for_side_check,
+    infer_mirror_against_template,
+)
 
 
 def discover_subjects(data_dir: str) -> list:
@@ -73,7 +78,13 @@ def discover_subjects(data_dir: str) -> list:
     return subjects
 
 
-def process_subjects(subjects: list, output_dir: str, resolution: int = 128):
+def process_subjects(
+    subjects: list,
+    output_dir: str,
+    resolution: int = 128,
+    canonicalize_side: bool = False,
+    mirror_gain_threshold: float = 0.97,
+):
     """
     Process all subjects: combine fragments, voxelize to SDF, save as .npy.
     
@@ -85,6 +96,23 @@ def process_subjects(subjects: list, output_dir: str, resolution: int = 128):
     os.makedirs(output_dir, exist_ok=True)
     
     metadata = []
+
+    template_points = None
+    template_subject_id = None
+    if canonicalize_side:
+        template_subjects = [s for s in subjects if s['subject_type'] == 'template']
+        if len(template_subjects) == 0:
+            raise ValueError("Side canonicalization requested but no template subject found.")
+
+        template_subject = template_subjects[0]
+        template_subject_id = template_subject['subject_id']
+        template_mesh = combine_fragments(template_subject['stl_files'])
+        template_points = sample_points_for_side_check(template_mesh, n_points=5000)
+
+        print(
+            f"Side canonicalization enabled: template={template_subject_id}, "
+            f"mirror_gain_threshold={mirror_gain_threshold:.3f}"
+        )
     
     for subj in tqdm(subjects, desc="Voxelizing subjects"):
         subject_id = subj['subject_id']
@@ -93,10 +121,32 @@ def process_subjects(subjects: list, output_dir: str, resolution: int = 128):
         print(f"\nProcessing {subject_id} ({len(stl_files)} fragments)...")
         
         try:
+            side_info = {
+                'mirror_left': False,
+                'orig_cost': np.nan,
+                'mirrored_cost': np.nan,
+                'ratio': np.nan,
+            }
+
+            if canonicalize_side and subj['subject_type'] != 'template':
+                mesh_for_side = combine_fragments(stl_files)
+                side_info = infer_mirror_against_template(
+                    mesh_for_side,
+                    template_points=template_points,
+                    n_points=3500,
+                    mirror_gain_threshold=mirror_gain_threshold,
+                )
+                print(
+                    f"  Side check: orig={side_info['orig_cost']:.6f}, "
+                    f"mirror={side_info['mirrored_cost']:.6f}, "
+                    f"ratio={side_info['ratio']:.3f}, "
+                    f"mirror={side_info['mirror_left']}"
+                )
+
             result = stl_to_sdf_with_metadata(
                 stl_files,
                 resolution=resolution,
-                mirror_left=False  # Default: no mirroring, can be overridden per-subject
+                mirror_left=side_info['mirror_left']
             )
             
             sdf = result['sdf']
@@ -120,6 +170,11 @@ def process_subjects(subjects: list, output_dir: str, resolution: int = 128):
                 'center_z': float(result['center_of_mass'][2]),
                 'scale': float(result['scale']),
                 'mirrored': result['mirrored'],
+                'canonicalized_to_template': bool(canonicalize_side),
+                'template_subject_id': template_subject_id if canonicalize_side else '',
+                'side_orig_cost': float(side_info['orig_cost']),
+                'side_mirrored_cost': float(side_info['mirrored_cost']),
+                'side_ratio_mirror_over_orig': float(side_info['ratio']),
             })
             
             print(f"  Saved: {sdf_path} (shape={sdf.shape}, fill={fill_ratio:.3f})")
@@ -190,13 +245,23 @@ def main():
                         help='Fraction of subjects for training')
     parser.add_argument('--seed', type=int, default=42,
                         help='Random seed for train/val split')
+    parser.add_argument('--canonicalize_side', action='store_true',
+                        help='Infer side against template and mirror to a common side')
+    parser.add_argument('--mirror_gain_threshold', type=float, default=0.97,
+                        help='Mirror only if mirror/original ICP cost ratio is below this threshold')
     args = parser.parse_args()
     
     # Step 1: Discover all subjects
     subjects = discover_subjects(args.data_dir)
     
     # Step 2: Process (voxelize) all subjects
-    metadata = process_subjects(subjects, args.output_dir, args.resolution)
+    metadata = process_subjects(
+        subjects,
+        args.output_dir,
+        args.resolution,
+        canonicalize_side=args.canonicalize_side,
+        mirror_gain_threshold=args.mirror_gain_threshold,
+    )
     
     # Step 3: Save metadata TSV
     tsv_path = os.path.join(args.output_dir, 'subjects.tsv')
