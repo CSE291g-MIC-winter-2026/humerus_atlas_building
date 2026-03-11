@@ -1,4 +1,4 @@
-# Fracture-Aware Humerus Atlas with Implicit Neural Representations
+# Humerus Atlas with Implicit Neural Representations
 
 This repository builds a 3D statistical representation of proximal humerus anatomy from fractured and ground-truth STL meshes.
 
