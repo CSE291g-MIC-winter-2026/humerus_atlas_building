@@ -51,10 +51,6 @@ We want one unified model that can:
 - It reports symmetric Chamfer and HD95 distance metrics.
 - Optional learned rigid transform correction can be applied from a checkpoint.
 
-6. Fracture pattern analysis
-- `fracture_atlas/fracture_analyzer.py` analyzes fracture-density maps on atlas space.
-- It extracts high-density zones and exports STL outputs for visualization/CAD use.
-
 ## Model Architecture
 
 The architecture diagram used in this project is shown below.
@@ -79,7 +75,6 @@ Rendered view of the epoch-2999 atlas:
 - `data_loading/`: preprocessing and dataset code
 - `models/`: INR decoder and SIREN network
 - `evals/`: atlas evaluation scripts and outputs
-- `fracture_atlas/`: fracture density and analysis tools
 - `output/`: checkpoints, atlas exports, and run artifacts
 - `tests/`: data-loading and pipeline tests
 
