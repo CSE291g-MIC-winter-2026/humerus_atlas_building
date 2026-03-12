@@ -1,6 +1,6 @@
 # Humerus Atlas with Implicit Neural Representations
 
-This repository builds a 3D statistical representation of proximal humerus anatomy from fractured and ground-truth STL meshes.
+This repository builds a 3D statistical representation of proximal humerus anatomy from ground-truth STL meshes.
 
 The goal is to learn a continuous Signed Distance Function (SDF) atlas that:
 
