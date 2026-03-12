@@ -59,7 +59,7 @@ The architecture diagram used in this project is shown below.
 
 Original PDF: [image (1).pdf](image%20(1).pdf)
 
-## Learned Atlas (Epoch 2999)
+## Learned Atlas (Epoch 3000)
 
 The atlas mesh used for evaluation in this project is:
 
