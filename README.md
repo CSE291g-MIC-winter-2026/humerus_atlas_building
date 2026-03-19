@@ -6,7 +6,6 @@ The goal is to learn a continuous Signed Distance Function (SDF) atlas that:
 
 - reconstructs subject-specific bone geometry,
 - aligns subjects into a common canonical space,
-- supports fracture-density analysis and CAD export,
 - provides quantitative atlas quality evaluation.
 
 ## Problem We Are Solving
